@@ -6,7 +6,7 @@ COPY package.json package-lock.json* ./
 RUN npm install
 
 COPY . .
-RUN npm run build
+RUN mkdir -p public && npm run build
 
 # Production image
 FROM node:20-alpine AS runner
