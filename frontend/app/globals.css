@@ -142,6 +142,6 @@ h1, h2, h3 {
 
 @layer utilities {
   .text-balance {
-    text-wrap: balance;
+    overflow-wrap: anywhere;
   }
 }

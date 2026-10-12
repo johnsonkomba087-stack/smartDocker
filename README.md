@@ -5,20 +5,30 @@ Built with **FastAPI** + **Next.js**
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Single Resume Analysis** | Score, matched/missing skills, strengths, improvements, score breakdown |
-| **Batch Ranker** | Upload many resumes → rank from best to worst |
-| **Excel Export** | Download styled ranked results (top 3 highlighted) |
-| **Admission Filter** | Set min score, required skills, education → auto filter qualified vs rejected |
-| **User Authentication** | Register / Login with JWT |
-| **LLM Feedback** | Optional rich AI feedback via Groq or Ollama |
-| **Semantic Embeddings** | Optional sentence-transformers for better matching |
-| **Multi-language** | English + Swahili UI |
+|Feature|Description|
+|---|---|
+|**Single Resume Analysis**|Score, matched/missing skills, strengths, improvements, score breakdown|
+|**Batch Ranker**|Upload many resumes -> rank from best to worst|
+|**Excel Export**|Download styled ranked results (top 3 highlighted)|
+|**Admission Filter**|Set min score, required skills, education -> auto filter qualified vs rejected|
+|**User Authentication**|Register / Login with JWT|
+|**LLM Feedback**|Optional rich AI feedback via Groq or Ollama|
+|**Semantic Embeddings**|Optional sentence-transformers for better matching|
+|**Multi-language**|English + Swahili UI|
 
 ---
 
 ## Quick Start
+
+### One Command (Windows PowerShell)
+
+From the project root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
+```
+
+This starts both backend and frontend (and installs missing dependencies on first run).
 
 ### Docker (recommended)
 
@@ -26,13 +36,39 @@ Built with **FastAPI** + **Next.js**
 docker-compose up --build
 ```
 
-- Frontend: http://localhost:3000  
-- Backend:  http://localhost:8000  
-- API Docs: http://localhost:8000/docs  
+- Frontend: <http://localhost:3000>
+- Backend: <http://localhost:8000>
+- API Docs: <http://localhost:8000/docs>
+
+### Deploy to Render
+
+This repo includes a `render.yaml` Blueprint for one-click deployment of:
+
+- `smart-resume-ranker-api` (FastAPI backend)
+- `smart-resume-ranker-web` (Next.js frontend)
+
+Steps:
+
+1. Push the latest code to GitHub.
+2. In Render, click **New +** -> **Blueprint**.
+3. Select this repository and branch.
+4. Review services and click **Apply**.
+
+After deploy:
+
+- Frontend URL: `https://smart-resume-ranker-web.onrender.com`
+- Backend URL: `https://smart-resume-ranker-api.onrender.com`
+- API Docs: `https://smart-resume-ranker-api.onrender.com/docs`
+
+Notes:
+
+- Backend DB defaults to SQLite (`/app/resume_ranker.db`) in container storage. For long-term persistence, use a managed database.
+- Set optional env vars in Render for LLM features (`GROQ_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL`).
 
 ### Local Development
 
-**Backend**
+#### Backend
+
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
@@ -40,7 +76,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-**Frontend**
+#### Frontend
+
 ```bash
 cd frontend
 npm install
@@ -72,6 +109,7 @@ SECRET_KEY=your-super-secret-key
 ```
 
 To enable embeddings:
+
 ```bash
 pip install sentence-transformers
 # then set USE_EMBEDDINGS=true
@@ -81,16 +119,16 @@ pip install sentence-transformers
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/analyze` | Single resume analysis (+ optional LLM) |
-| POST | `/api/batch` | Batch rank |
-| POST | `/api/batch/export` | Batch rank + Excel download |
-| POST | `/api/admission/filter` | Admission / criteria filter |
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Login → JWT |
-| GET  | `/api/auth/me` | Current user |
-| GET  | `/health` | Health check |
+|Method|Endpoint|Description|
+|---|---|---|
+|POST|`/api/analyze`|Single resume analysis (+ optional LLM)|
+|POST|`/api/batch`|Batch rank|
+|POST|`/api/batch/export`|Batch rank + Excel download|
+|POST|`/api/admission/filter`|Admission / criteria filter|
+|POST|`/api/auth/register`|Create account|
+|POST|`/api/auth/login`|Login -> JWT|
+|GET|`/api/auth/me`|Current user|
+|GET|`/health`|Health check|
 
 ---
 
@@ -105,7 +143,7 @@ pip install sentence-transformers
 
 ## Project Structure
 
-```
+```text
 smart-resume-ranker/
 ├── backend/
 │   ├── app/

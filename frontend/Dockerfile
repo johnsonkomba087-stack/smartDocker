@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY . .
 RUN mkdir -p public && npm run build
 
 # Production image
-FROM node:20-alpine AS runner
+FROM cgr.dev/chainguard/node:latest AS runner
 
 WORKDIR /app
 
@@ -22,4 +22,4 @@ COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "3000"]
