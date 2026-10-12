@@ -7,6 +7,11 @@
   --background-rgb: 252, 248, 241;
 }
 
+:root[data-theme="dark"] {
+  --foreground-rgb: 226, 232, 240;
+  --background-rgb: 3, 7, 18;
+}
+
 body {
   font-family: var(--font-body), "Segoe UI", sans-serif;
   color: rgb(var(--foreground-rgb));
@@ -29,6 +34,50 @@ h1, h2, h3 {
     linear-gradient(155deg, #fffaf2 0%, #f8fbff 55%, #f8f6ff 100%);
 }
 
+:root[data-theme="dark"] .bg-decoration {
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(251, 146, 60, 0.14), transparent 35%),
+    radial-gradient(circle at 90% 16%, rgba(244, 63, 94, 0.12), transparent 33%),
+    radial-gradient(circle at 70% 85%, rgba(14, 165, 233, 0.12), transparent 35%),
+    linear-gradient(155deg, #090f1f 0%, #0d1324 55%, #161124 100%);
+}
+
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] .bg-white\/75,
+:root[data-theme="dark"] .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+}
+
+:root[data-theme="dark"] .bg-slate-50 {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+}
+
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-slate-700,
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-slate-500,
+:root[data-theme="dark"] .text-slate-400 {
+  color: #e2e8f0 !important;
+}
+
+:root[data-theme="dark"] .border-slate-200,
+:root[data-theme="dark"] .border-slate-300,
+:root[data-theme="dark"] .border-slate-300\/70,
+:root[data-theme="dark"] .border-white\/40,
+:root[data-theme="dark"] .border-white\/50 {
+  border-color: rgba(71, 85, 105, 0.75) !important;
+}
+
+:root[data-theme="dark"] .shadow-slate-300\/60,
+:root[data-theme="dark"] .shadow-orange-100\/40 {
+  --tw-shadow-color: rgba(2, 6, 23, 0.55) !important;
+}
+
+:root[data-theme="dark"] .shimmer::after {
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.2), transparent);
+}
+
 .animate-in {
   animation: rise-in 0.5s ease-out both;
 }
@@ -43,6 +92,22 @@ h1, h2, h3 {
 .stagger-item:nth-child(4) { animation-delay: 0.12s; }
 .stagger-item:nth-child(5) { animation-delay: 0.15s; }
 .stagger-item:nth-child(6) { animation-delay: 0.18s; }
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -130%;
+  width: 90%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer-slide 1.25s infinite;
+}
 
 @keyframes rise-in {
   from {
@@ -63,6 +128,15 @@ h1, h2, h3 {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes shimmer-slide {
+  from {
+    left: -130%;
+  }
+  to {
+    left: 130%;
   }
 }
 

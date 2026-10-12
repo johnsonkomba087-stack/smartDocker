@@ -4,15 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ClipboardCheck,
   Download,
   FileText,
   Globe,
   Loader2,
   LogIn,
   LogOut,
+  MoonStar,
+  ScanSearch,
   Sparkles,
+  SunMedium,
   Trophy,
   Upload,
+  UserCheck,
   X,
 } from "lucide-react";
 import {
@@ -29,6 +34,12 @@ import {
 import { Locale, t } from "@/lib/i18n";
 
 type Mode = "single" | "batch" | "admission";
+type Theme = "light" | "dark";
+
+type Toast = {
+  id: number;
+  message: string;
+};
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".docx"];
 
@@ -76,12 +87,29 @@ export default function Home() {
   const [authUser, setAuthUser] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authEmail, setAuthEmail] = useState("");
+  const [theme, setTheme] = useState<Theme>("light");
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setUsername(localStorage.getItem("username"));
+
+      const storedTheme = localStorage.getItem("theme");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const nextTheme = storedTheme === "dark" || storedTheme === "light"
+        ? (storedTheme as Theme)
+        : prefersDark
+          ? "dark"
+          : "light";
+      setTheme(nextTheme);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -139,6 +167,14 @@ export default function Home() {
     setBatchFiles((current) => current.filter((file) => file.name !== name));
   };
 
+  const addToast = (message: string) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setToasts((current) => [...current, { id, message }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, 3600);
+  };
+
   const handleSingle = async () => {
     if (!jobDescription.trim() || !singleFile) {
       setError("Please provide both a job description and a resume file.");
@@ -150,6 +186,7 @@ export default function Home() {
     try {
       const result = await analyzeSingleResume(jobDescription, singleFile, includeLlm);
       setSingleResult(result);
+      addToast("Single resume analysis complete.");
     } catch (err) {
       setError(getErrorMessage(err, "Failed to analyze resume."));
     } finally {
@@ -168,6 +205,7 @@ export default function Home() {
     try {
       const result = await analyzeBatchResumes(jobDescription, batchFiles);
       setBatchResult(result);
+      addToast(`Batch ranking complete for ${result.total_resumes} resumes.`);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to process batch."));
     } finally {
@@ -193,6 +231,7 @@ export default function Home() {
         requireQuantified,
       );
       setAdmissionResult(result);
+      addToast(`Admission filtering complete. ${result.qualified_count} qualified.`);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to filter applicants."));
     } finally {
@@ -214,6 +253,7 @@ export default function Home() {
       anchor.download = "ranked_resumes.xlsx";
       anchor.click();
       URL.revokeObjectURL(url);
+      addToast("Excel export completed.");
     } catch {
       setError("Failed to export Excel.");
     } finally {
@@ -236,6 +276,7 @@ export default function Home() {
         setUsername(data.username);
       }
       setShowAuth(false);
+      addToast("Authentication successful.");
     } catch (err) {
       setError(getErrorMessage(err, "Authentication failed"));
     }
@@ -274,6 +315,42 @@ export default function Home() {
 
   const executeCurrentMode = mode === "single" ? handleSingle : mode === "batch" ? handleBatch : handleAdmission;
 
+  const emptyStateMeta: Record<Mode, { icon: JSX.Element; title: string; description: string }> = {
+    single: {
+      icon: <ScanSearch className="h-10 w-10 text-orange-500" />,
+      title: "Analyze one resume with full detail",
+      description: "Paste a job description and upload one CV to get a score, strengths, and improvements.",
+    },
+    batch: {
+      icon: <Trophy className="h-10 w-10 text-amber-500" />,
+      title: "Rank multiple resumes in seconds",
+      description: "Upload several resumes at once to compare fit and identify top candidates quickly.",
+    },
+    admission: {
+      icon: <ClipboardCheck className="h-10 w-10 text-emerald-500" />,
+      title: "Auto-filter qualified applicants",
+      description: "Set minimum score and criteria to instantly split qualified and rejected applicants.",
+    },
+  };
+
+  const modeMeta: Record<Mode, { icon: JSX.Element; title: string; subtitle: string }> = {
+    single: {
+      icon: <ScanSearch className="h-4 w-4" />,
+      title: tr("single"),
+      subtitle: "Deep analysis for one candidate profile",
+    },
+    batch: {
+      icon: <Trophy className="h-4 w-4" />,
+      title: tr("batch"),
+      subtitle: "Rank multiple resumes in one run",
+    },
+    admission: {
+      icon: <ClipboardCheck className="h-4 w-4" />,
+      title: tr("admission"),
+      subtitle: "Filter qualified vs rejected instantly",
+    },
+  };
+
   return (
     <div className="min-h-screen text-slate-900">
       <div className="bg-decoration" />
@@ -297,6 +374,14 @@ export default function Home() {
             >
               <Globe className="h-4 w-4" />
               {locale === "en" ? "SW" : "EN"}
+            </button>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300/70 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
+              aria-label="Toggle color theme"
+            >
+              {theme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+              {theme === "dark" ? "Light" : "Dark"}
             </button>
             {username ? (
               <div className="inline-flex items-center gap-2 rounded-xl border border-slate-300/70 bg-white px-3 py-2">
@@ -367,9 +452,20 @@ export default function Home() {
                     : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                {m === "single" ? tr("single") : m === "batch" ? tr("batch") : tr("admission")}
+                <span className="inline-flex items-center gap-2">
+                  {modeMeta[m].icon}
+                  {modeMeta[m].title}
+                </span>
               </button>
             ))}
+          </div>
+
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-white via-orange-50/50 to-sky-50/50 p-3">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <UserCheck className="h-4 w-4 text-orange-600" />
+              {modeMeta[mode].title}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-600">{modeMeta[mode].subtitle}</p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -451,7 +547,9 @@ export default function Home() {
                     setUploadedFiles(Array.from(event.dataTransfer.files || []));
                   }}
                   className={`rounded-2xl border-2 border-dashed p-6 text-center transition ${
-                    dragOver ? "border-orange-500 bg-orange-50" : "border-slate-300 bg-slate-50 hover:border-orange-300"
+                    dragOver
+                      ? "border-orange-500 bg-orange-50 shadow-[0_0_0_4px_rgba(251,146,60,0.12)]"
+                      : "border-slate-300 bg-slate-50 hover:border-orange-300"
                   }`}
                 >
                   <input
@@ -468,6 +566,7 @@ export default function Home() {
                       {mode === "single" ? tr("clickUpload") : tr("clickUploadMulti")}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">Drag and drop is supported</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">Accepted: PDF, DOCX</p>
                   </label>
                 </div>
 
@@ -558,6 +657,20 @@ export default function Home() {
             </section>
 
             <section className="space-y-4">
+              {loading && (
+                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 h-6 w-40 rounded-lg bg-slate-200 shimmer" />
+                  <div className="mb-3 h-4 w-full rounded bg-slate-100 shimmer" />
+                  <div className="mb-3 h-4 w-5/6 rounded bg-slate-100 shimmer" />
+                  <div className="mb-4 h-4 w-2/3 rounded bg-slate-100 shimmer" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="h-20 rounded-xl bg-slate-100 shimmer" />
+                    <div className="h-20 rounded-xl bg-slate-100 shimmer" />
+                    <div className="h-20 rounded-xl bg-slate-100 shimmer" />
+                  </div>
+                </div>
+              )}
+
               {mode === "single" && singleResult && (
                 <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="mb-4 flex items-center justify-between gap-4">
@@ -751,11 +864,14 @@ export default function Home() {
               )}
 
               {!singleResult && !batchResult && !admissionResult && !loading && (
-                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                  <FileText className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-                  <h3 className="text-base font-semibold text-slate-700">{tr("noResults")}</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {mode === "single" ? tr("noResultsSingle") : tr("noResultsBatch")}
+                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm md:p-10">
+                  <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-slate-200 bg-slate-50">
+                    {emptyStateMeta[mode].icon}
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-800">{emptyStateMeta[mode].title}</h3>
+                  <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">{emptyStateMeta[mode].description}</p>
+                  <p className="mt-4 text-xs font-medium uppercase tracking-wider text-slate-400">
+                    {tr("noResults")} • {mode === "single" ? tr("noResultsSingle") : tr("noResultsBatch")}
                   </p>
                 </div>
               )}
@@ -763,6 +879,18 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      <div className="pointer-events-none fixed right-4 top-20 z-[60] space-y-2 sm:right-6">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="animate-in flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 shadow-lg shadow-emerald-200/50"
+          >
+            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
 
       {showAuth && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-sm">
