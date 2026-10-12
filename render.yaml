@@ -26,7 +26,4 @@ services:
     autoDeploy: true
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: smart-resume-ranker-api
-          property: url
+        value: https://smart-resume-ranker-api.onrender.com
