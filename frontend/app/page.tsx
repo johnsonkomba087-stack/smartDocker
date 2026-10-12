@@ -253,6 +253,25 @@ export default function Home() {
     return "text-rose-900 bg-rose-100 border-rose-300";
   };
 
+  const getGaugeColor = (score: number) => {
+    if (score >= 75) return "#059669";
+    if (score >= 50) return "#d97706";
+    return "#e11d48";
+  };
+
+  const getRankBadgeClasses = (rank: number) => {
+    if (rank === 1) {
+      return "border-amber-300 bg-gradient-to-br from-yellow-200 via-amber-200 to-yellow-400 text-amber-950 shadow-[0_0_0_2px_rgba(251,191,36,0.25),0_8px_20px_rgba(217,119,6,0.25)]";
+    }
+    if (rank === 2) {
+      return "border-slate-300 bg-gradient-to-br from-slate-200 via-zinc-200 to-slate-400 text-slate-900 shadow-[0_0_0_2px_rgba(148,163,184,0.2),0_8px_18px_rgba(100,116,139,0.22)]";
+    }
+    if (rank === 3) {
+      return "border-orange-300 bg-gradient-to-br from-orange-200 via-amber-200 to-orange-400 text-orange-950 shadow-[0_0_0_2px_rgba(251,146,60,0.22),0_8px_18px_rgba(194,65,12,0.22)]";
+    }
+    return "border-slate-200 bg-slate-200 text-slate-700";
+  };
+
   const executeCurrentMode = mode === "single" ? handleSingle : mode === "batch" ? handleBatch : handleAdmission;
 
   return (
@@ -541,10 +560,23 @@ export default function Home() {
             <section className="space-y-4">
               {mode === "single" && singleResult && (
                 <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between gap-4">
                     <h3 className="text-lg font-semibold">{tr("analysisResult")}</h3>
-                    <div className={`rounded-full border px-3 py-1 text-sm font-bold ${getScoreColor(singleResult.score)}`}>
-                      {singleResult.score}/100
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="relative grid h-20 w-20 place-items-center rounded-full"
+                        style={{
+                          background: `conic-gradient(${getGaugeColor(singleResult.score)} ${singleResult.score * 3.6}deg, #e2e8f0 0deg)`,
+                        }}
+                        aria-label={`Score gauge ${singleResult.score} out of 100`}
+                      >
+                        <div className="grid h-[74px] w-[74px] place-items-center rounded-full bg-white shadow-inner shadow-slate-200">
+                          <span className="text-lg font-extrabold text-slate-900">{singleResult.score}</span>
+                        </div>
+                      </div>
+                      <div className={`rounded-full border px-3 py-1 text-sm font-bold ${getScoreColor(singleResult.score)}`}>
+                        {singleResult.score}/100
+                      </div>
                     </div>
                   </div>
 
@@ -642,15 +674,7 @@ export default function Home() {
                     {batchResult.results.map((item) => (
                       <div key={item.filename} className="stagger-item flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <div
-                          className={`grid h-9 w-9 place-items-center rounded-full text-xs font-bold ${
-                            item.rank === 1
-                              ? "bg-amber-200 text-amber-900"
-                              : item.rank === 2
-                                ? "bg-slate-300 text-slate-800"
-                                : item.rank === 3
-                                  ? "bg-orange-200 text-orange-900"
-                                  : "bg-slate-200 text-slate-700"
-                          }`}
+                          className={`grid h-10 w-10 place-items-center rounded-full border text-xs font-extrabold ${getRankBadgeClasses(item.rank)}`}
                         >
                           #{item.rank}
                         </div>
@@ -669,14 +693,14 @@ export default function Home() {
 
               {mode === "admission" && admissionResult && (
                 <div className="animate-in space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center">
-                      <p className="text-3xl font-bold text-emerald-800">{admissionResult.qualified_count}</p>
-                      <p className="text-xs uppercase tracking-wider text-emerald-700">{tr("qualified")}</p>
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                    <div className="rounded-2xl border-2 border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-100 p-5 text-center shadow-lg shadow-emerald-200/50 md:p-6">
+                      <p className="text-4xl font-extrabold text-emerald-900 md:text-5xl">{admissionResult.qualified_count}</p>
+                      <p className="text-sm font-semibold uppercase tracking-wider text-emerald-800">{tr("qualified")}</p>
                     </div>
-                    <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-center">
-                      <p className="text-3xl font-bold text-rose-800">{admissionResult.rejected_count}</p>
-                      <p className="text-xs uppercase tracking-wider text-rose-700">{tr("rejected")}</p>
+                    <div className="rounded-2xl border-2 border-rose-400 bg-gradient-to-br from-rose-50 to-orange-100 p-5 text-center shadow-lg shadow-rose-200/50 md:p-6">
+                      <p className="text-4xl font-extrabold text-rose-900 md:text-5xl">{admissionResult.rejected_count}</p>
+                      <p className="text-sm font-semibold uppercase tracking-wider text-rose-800">{tr("rejected")}</p>
                     </div>
                   </div>
 
