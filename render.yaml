@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: smart-resume-ranker-api
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: LLM_PROVIDER
+        value: none
+      - key: USE_EMBEDDINGS
+        value: "false"
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///app/resume_ranker.db
+
+  - type: web
+    name: smart-resume-ranker-web
+    runtime: docker
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: smart-resume-ranker-api
+          property: url
