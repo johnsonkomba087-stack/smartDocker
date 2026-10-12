@@ -43,7 +43,44 @@ type Toast = {
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".docx"];
 
+function getFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function getErrorMessage(err: unknown, fallback: string) {
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "response" in err
+  ) {
+    const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+
+    if (typeof detail === "string" && detail.trim()) {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null && "msg" in item && typeof (item as { msg?: unknown }).msg === "string") {
+            return (item as { msg: string }).msg;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join("; ");
+
+      if (messages) return messages;
+    }
+  }
+
   if (
     typeof err === "object" &&
     err !== null &&
@@ -87,6 +124,8 @@ export default function Home() {
   const [authUser, setAuthUser] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authEmail, setAuthEmail] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -159,12 +198,16 @@ export default function Home() {
     if (mode === "single") {
       setSingleFile(filtered[0] || null);
     } else {
-      setBatchFiles(filtered);
+      setBatchFiles((current) => {
+        const existing = new Set(current.map(getFileKey));
+        const additions = filtered.filter((file) => !existing.has(getFileKey(file)));
+        return [...current, ...additions];
+      });
     }
   };
 
-  const removeBatchFile = (name: string) => {
-    setBatchFiles((current) => current.filter((file) => file.name !== name));
+  const removeBatchFileAt = (indexToRemove: number) => {
+    setBatchFiles((current) => current.filter((_, index) => index !== indexToRemove));
   };
 
   const addToast = (message: string) => {
@@ -262,23 +305,43 @@ export default function Home() {
   };
 
   const handleAuth = async () => {
+    setAuthError(null);
+
+    if (!authUser.trim() || !authPass.trim()) {
+      setAuthError("Username and password are required.");
+      return;
+    }
+
+    if (authMode === "register" && !authEmail.trim()) {
+      setAuthError("Email is required for registration.");
+      return;
+    }
+
+    setAuthLoading(true);
     try {
       if (authMode === "login") {
-        const data = await login(authUser, authPass);
+        const data = await login(authUser.trim(), authPass);
         localStorage.setItem("token", data.access_token);
         localStorage.setItem("username", data.username);
         setUsername(data.username);
       } else {
-        await register(authEmail, authUser, authPass);
-        const data = await login(authUser, authPass);
+        await register(authEmail.trim(), authUser.trim(), authPass);
+        const data = await login(authUser.trim(), authPass);
         localStorage.setItem("token", data.access_token);
         localStorage.setItem("username", data.username);
         setUsername(data.username);
       }
       setShowAuth(false);
+      setAuthUser("");
+      setAuthPass("");
+      setAuthEmail("");
+      setAuthError(null);
+      setError(null);
       addToast("Authentication successful.");
     } catch (err) {
-      setError(getErrorMessage(err, "Authentication failed"));
+      setAuthError(getErrorMessage(err, "Authentication failed"));
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -352,10 +415,10 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen text-slate-900">
+    <div className="app-shell min-h-screen text-slate-900">
       <div className="bg-decoration" />
 
-      <header className="sticky top-0 z-20 border-b border-white/40 bg-white/75 backdrop-blur-xl">
+      <header className="app-header sticky top-0 z-20 border-b border-white/40 bg-white/75 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 md:px-6">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 via-rose-500 to-amber-400 text-white shadow-lg shadow-rose-300/30">
@@ -392,7 +455,10 @@ export default function Home() {
               </div>
             ) : (
               <button
-                onClick={() => setShowAuth(true)}
+                onClick={() => {
+                  setAuthError(null);
+                  setShowAuth(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 <LogIn className="h-4 w-4" />
@@ -404,33 +470,33 @@ export default function Home() {
       </header>
 
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10">
-        <section className="animate-in rounded-3xl border border-white/50 bg-white/80 p-5 shadow-2xl shadow-orange-100/40 backdrop-blur md:p-7">
+        <section className="glass-panel animate-in rounded-3xl p-5 backdrop-blur md:p-7">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
                 <Sparkles className="h-3.5 w-3.5" />
                 AI-first Candidate Ranking
               </p>
-              <h2 className="text-2xl font-bold leading-tight md:text-3xl">Modern evaluator for resumes at scale</h2>
+              <h2 className="headline-gradient text-2xl font-bold leading-tight md:text-3xl">Modern evaluator for resumes at scale</h2>
               <p className="mt-1 text-sm text-slate-600">{tr("tagline")}</p>
             </div>
             <p className="text-xs text-slate-500">Shortcut: Ctrl/Cmd + Enter to run current mode</p>
           </div>
 
           <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-orange-200/80 bg-orange-50 p-3">
+            <div className="kpi-card rounded-2xl border border-orange-200/80 bg-orange-50 p-3">
               <p className="text-xs uppercase tracking-wider text-orange-600">Mode</p>
               <p className="text-lg font-semibold text-orange-900">{mode}</p>
             </div>
-            <div className="rounded-2xl border border-sky-200/80 bg-sky-50 p-3">
+            <div className="kpi-card rounded-2xl border border-sky-200/80 bg-sky-50 p-3">
               <p className="text-xs uppercase tracking-wider text-sky-600">Words in JD</p>
               <p className="text-lg font-semibold text-sky-900">{jobWordCount}</p>
             </div>
-            <div className="rounded-2xl border border-violet-200/80 bg-violet-50 p-3">
+            <div className="kpi-card rounded-2xl border border-violet-200/80 bg-violet-50 p-3">
               <p className="text-xs uppercase tracking-wider text-violet-600">Files loaded</p>
               <p className="text-lg font-semibold text-violet-900">{uploadedCount}</p>
             </div>
-            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50 p-3">
+            <div className="kpi-card rounded-2xl border border-emerald-200/80 bg-emerald-50 p-3">
               <p className="text-xs uppercase tracking-wider text-emerald-600">Ready</p>
               <p className="text-lg font-semibold text-emerald-900">
                 {jobDescription.trim() && uploadedCount > 0 ? "Yes" : "No"}
@@ -446,9 +512,9 @@ export default function Home() {
                   setMode(m);
                   resetResults();
                 }}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${
+                className={`mode-pill rounded-full px-4 py-2 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${
                   mode === m
-                    ? "bg-slate-900 text-white shadow-lg shadow-slate-300/60"
+                    ? "active bg-slate-900 text-white shadow-lg shadow-slate-300/60"
                     : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
@@ -476,7 +542,7 @@ export default function Home() {
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
                   placeholder={tr("jobPlaceholder")}
-                  className="h-44 w-full resize-none rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm outline-none transition focus:border-orange-400 focus:bg-white"
+                  className="input-modern h-44 w-full resize-none px-3 py-3 text-sm outline-none"
                 />
                 <p className="mt-2 text-xs text-slate-500">{jobWordCount} words</p>
               </div>
@@ -502,7 +568,7 @@ export default function Home() {
                         value={requiredSkills}
                         onChange={(e) => setRequiredSkills(e.target.value)}
                         placeholder="python, react, docker"
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                        className="input-modern w-full px-3 py-2 text-sm outline-none"
                       />
                     </div>
                     <div>
@@ -510,7 +576,7 @@ export default function Home() {
                       <select
                         value={minEducation}
                         onChange={(e) => setMinEducation(e.target.value)}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                        className="input-modern w-full px-3 py-2 text-sm outline-none"
                       >
                         <option value="none">None</option>
                         <option value="bachelor">Bachelor</option>
@@ -546,9 +612,9 @@ export default function Home() {
                     setDragOver(false);
                     setUploadedFiles(Array.from(event.dataTransfer.files || []));
                   }}
-                  className={`rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                  className={`dropzone-modern rounded-2xl border-2 border-dashed p-6 text-center transition ${
                     dragOver
-                      ? "border-orange-500 bg-orange-50 shadow-[0_0_0_4px_rgba(251,146,60,0.12)]"
+                      ? "is-dragging border-orange-500 bg-orange-50 shadow-[0_0_0_4px_rgba(251,146,60,0.12)]"
                       : "border-slate-300 bg-slate-50 hover:border-orange-300"
                   }`}
                 >
@@ -558,7 +624,10 @@ export default function Home() {
                     accept=".pdf,.docx"
                     multiple={mode !== "single"}
                     className="hidden"
-                    onChange={(e) => setUploadedFiles(Array.from(e.target.files || []))}
+                    onChange={(e) => {
+                      setUploadedFiles(Array.from(e.target.files || []));
+                      e.currentTarget.value = "";
+                    }}
                   />
                   <label htmlFor="file-upload" className="cursor-pointer">
                     <Upload className="mx-auto mb-2 h-8 w-8 text-slate-500" />
@@ -583,7 +652,9 @@ export default function Home() {
                   {mode !== "single" && batchFiles.length > 0 && (
                     <>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{batchFiles.length} files selected</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                          {batchFiles.length} files selected • {formatFileSize(batchFiles.reduce((sum, file) => sum + file.size, 0))}
+                        </p>
                         <button
                           onClick={() => setBatchFiles([])}
                           className="text-xs font-semibold text-rose-600 hover:text-rose-700"
@@ -594,11 +665,14 @@ export default function Home() {
                       <div className="max-h-36 space-y-2 overflow-auto pr-1">
                         {batchFiles.map((file, index) => (
                           <div
-                            key={`${file.name}-${index}`}
+                            key={`${getFileKey(file)}-${index}`}
                             className="stagger-item flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                           >
-                            <span className="truncate text-slate-700">{file.name}</span>
-                            <button onClick={() => removeBatchFile(file.name)} className="rounded p-1 hover:bg-slate-200" aria-label="Remove file">
+                            <div className="min-w-0">
+                              <span className="block truncate text-slate-700">{file.name}</span>
+                              <span className="block text-[11px] text-slate-500">{formatFileSize(file.size)}</span>
+                            </div>
+                            <button onClick={() => removeBatchFileAt(index)} className="rounded p-1 hover:bg-slate-200" aria-label="Remove file">
                               <X className="h-4 w-4 text-slate-500" />
                             </button>
                           </div>
@@ -620,7 +694,7 @@ export default function Home() {
                 <button
                   onClick={executeCurrentMode}
                   disabled={loading}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                  className="cta-primary inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                 >
                   {loading ? (
                     <>
@@ -640,7 +714,7 @@ export default function Home() {
                   <button
                     onClick={handleExport}
                     disabled={exporting || batchFiles.length === 0}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400"
+                    className="cta-success inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400"
                   >
                     {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                     {tr("excel")}
@@ -658,7 +732,7 @@ export default function Home() {
 
             <section className="space-y-4">
               {loading && (
-                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="result-panel animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="mb-4 h-6 w-40 rounded-lg bg-slate-200 shimmer" />
                   <div className="mb-3 h-4 w-full rounded bg-slate-100 shimmer" />
                   <div className="mb-3 h-4 w-5/6 rounded bg-slate-100 shimmer" />
@@ -672,7 +746,7 @@ export default function Home() {
               )}
 
               {mode === "single" && singleResult && (
-                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="result-panel animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <h3 className="text-lg font-semibold">{tr("analysisResult")}</h3>
                     <div className="flex items-center gap-3">
@@ -775,7 +849,7 @@ export default function Home() {
               )}
 
               {mode === "batch" && batchResult && (
-                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="result-panel animate-in rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="mb-4 flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-amber-500" />
                     <h3 className="text-lg font-semibold">
@@ -805,7 +879,7 @@ export default function Home() {
               )}
 
               {mode === "admission" && admissionResult && (
-                <div className="animate-in space-y-4">
+                <div className="result-panel animate-in space-y-4 rounded-2xl bg-white p-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
                     <div className="rounded-2xl border-2 border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-100 p-5 text-center shadow-lg shadow-emerald-200/50 md:p-6">
                       <p className="text-4xl font-extrabold text-emerald-900 md:text-5xl">{admissionResult.qualified_count}</p>
@@ -864,7 +938,7 @@ export default function Home() {
               )}
 
               {!singleResult && !batchResult && !admissionResult && !loading && (
-                <div className="animate-in rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm md:p-10">
+                <div className="result-panel animate-in rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm md:p-10">
                   <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-slate-200 bg-slate-50">
                     {emptyStateMeta[mode].icon}
                   </div>
@@ -884,7 +958,7 @@ export default function Home() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="animate-in flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 shadow-lg shadow-emerald-200/50"
+            className="toast-modern animate-in flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 shadow-lg shadow-emerald-200/50"
           >
             <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>{toast.message}</span>
@@ -906,8 +980,14 @@ export default function Home() {
                   placeholder={tr("email")}
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                  className="input-modern w-full px-3 py-2 text-sm outline-none"
                 />
+              )}
+
+              {authError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+                  {authError}
+                </div>
               )}
 
               <input
@@ -915,7 +995,10 @@ export default function Home() {
                 placeholder={tr("username")}
                 value={authUser}
                 onChange={(e) => setAuthUser(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !authLoading) void handleAuth();
+                }}
+                className="input-modern w-full px-3 py-2 text-sm outline-none"
               />
 
               <input
@@ -923,14 +1006,18 @@ export default function Home() {
                 placeholder={tr("password")}
                 value={authPass}
                 onChange={(e) => setAuthPass(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !authLoading) void handleAuth();
+                }}
+                className="input-modern w-full px-3 py-2 text-sm outline-none"
               />
 
               <button
                 onClick={handleAuth}
-                className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                disabled={authLoading}
+                className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
               >
-                {authMode === "login" ? tr("login") : tr("register")}
+                {authLoading ? "Please wait..." : authMode === "login" ? tr("login") : tr("register")}
               </button>
 
               <button
